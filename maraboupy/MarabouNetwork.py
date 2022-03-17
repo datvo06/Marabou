@@ -5,7 +5,7 @@ Top contributors (to current version):
     - Andrew Wu
     - Kyle Julian
     - Teruhiro Tagomori
-    
+
 This file is part of the Marabou project.
 Copyright (c) 2017-2019 by the authors listed in the file AUTHORS
 in the top-level source directory) and their institutional affiliations.
@@ -22,7 +22,7 @@ import numpy as np
 
 class MarabouNetwork:
     """Abstract class representing general Marabou network
-    
+
     Attributes:
         numVars (int): Total number of variables to represent network
         equList (list of :class:`~maraboupy.MarabouUtils.Equation`): Network equations
@@ -257,7 +257,7 @@ class MarabouNetwork:
         for u in self.upperBounds:
             assert u < self.numVars
             ipq.setUpperBound(u, self.upperBounds[u])
-            
+
         return ipq
 
     def solve(self, filename="", verbose=True, options=None):
@@ -330,7 +330,7 @@ class MarabouNetwork:
         for i in range(flattenInput.size):
             self.setLowerBound(flattenInputVars[i], flattenInput[i] - epsilon)
             self.setUpperBound(flattenInputVars[i], flattenInput[i] + epsilon)
-        
+
         maxClass = None
         outputStartIndex = self.outputVars[0][0]
 
@@ -339,7 +339,7 @@ class MarabouNetwork:
             # loop for all of output classes except for original class
             for outputLayerIndex in range(outputLayerSize):
                 if outputLayerIndex != originalClass:
-                    self.addMaxConstraint(set([outputStartIndex + outputLayerIndex, outputStartIndex + originalClass]), 
+                    self.addMaxConstraint(set([outputStartIndex + outputLayerIndex, outputStartIndex + originalClass]),
                         outputStartIndex + outputLayerIndex)
                     exitCode, vals, stats = self.solve(options = options)
                     if (stats.hasTimedOut()):
@@ -353,7 +353,7 @@ class MarabouNetwork:
             if verbose:
                 if not stats.hasTimedOut() and len(vals) > 0:
                     maxClass = targetClass
-        
+
         # print timeout, or feasible inputs and outputs if verbose is on.
         if verbose:
             if stats.hasTimedOut():
@@ -391,7 +391,7 @@ class MarabouNetwork:
         """
         # Make sure inputValues is a list of np arrays and not list of lists
         inputValues = [np.array(inVal) for inVal in inputValues]
-        
+
         inputVars = self.inputVars # list of numpy arrays
         outputVars = self.outputVars
 
