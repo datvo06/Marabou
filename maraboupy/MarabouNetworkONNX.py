@@ -98,6 +98,9 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         # intermediate variables. This function reassigns variable numbering to match other parsers.
         # If this is skipped, the output variables will be the last variables defined.
         self.reassignOutputVariables()
+        print(self.absList, self.maxList)
+        for equation in self.equList:
+            print(equation.addendList, equation.scalar, equation.EquationType)
 
     def processGraph(self):
         """Processes the ONNX graph to produce Marabou equations
@@ -122,6 +125,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
 
         # Recursively create remaining shapes and equations as needed
         self.makeGraphEquations(self.outputName, True)
+
 
 
 
@@ -226,6 +230,11 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.sigmoidEquations(node, makeEquations)
         else:
             raise NotImplementedError("Operation {} not implemented".format(node.op_type))
+        print(node.output[0], node.op_type, node.name)
+        if node.output[0] in self.constantMap:
+            print("Constant: ", self.constantMap[node.output[0]])
+        elif node.output[0] in self.varMap:
+            print("Var:" ,self.varMap[node.output[0]])
 
     def getNode(self, nodeName):
         """Find the node in the graph corresponding to the given name
@@ -473,14 +482,16 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                 # then makevar
                 var_val = self.makeNewVariables(i_n).reshape(-1)
                 const_val = self.constantMap[i_n].reshape(-1)
-                for i in range(len(var_val.shape)):
-                    self.addEquality([var_val[i]], [1.], const_val[i])
+                for i in range(len(var_val)):
+                    e = MarabouUtils.Equation()
+                    e.addAddend(1, var_val[i])
+                    e.setScalar(const_val[i])
+                    self.addEquation(e)
                 var_arrays.append(var_val)
         self.varMap[node.output[0]] = np.concatenate(
-                tuple(self.varMap[i_n] for i_n in node.input),
+                tuple(var_arrays),
                 axis=axis)
         self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
-
 
     def constantOfShape(self, node):
         """Function representing a constant tensor
@@ -649,7 +660,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         """Function to generate reduce max equations
 
         Args:
-            node (node): ONNX node representing maxpool operation
+            node (node): ONNX node representing reduce max operation
             makeEquations (bool): True if we need to create new variables and maxpool constraints
 
         :meta private:
@@ -682,8 +693,11 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                     pos = [pos]
                 pos_orig = pos[:]
                 pos.insert(axis, slice(None))
-                maxVars = set(self.varMap[inputName][pos].flatten().tolist())
-                self.addMaxConstraint(maxVars, outputVar[pos_orig])
+                maxVars = set(self.varMap[inputName][tuple(pos)].flatten().tolist())
+                if len(maxVars) == 1:
+                    outputVar[pos_orig] = list(maxVars)[0]
+                else:
+                    self.addMaxConstraint(maxVars, outputVar[pos_orig][0])
 
 
     def convEquations(self, node, makeEquations):
@@ -952,7 +966,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         """Function to generate equations corresponding to negation
 
         Args:
-            node (node): ONNX node representing the Add operation
+            node (node): ONNX node representing the negation operation
             makeEquations (bool): True if we need to create new variables and write Marabou equations
 
         :meta private:
@@ -970,19 +984,12 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             return
 
         # Decide which inputs are variables and which are constants
-        firstInputConstant = False
         if inputName in self.constantMap:
-            firstInputConstant = True
             input1 = self.constantMap[inputName]
-        else:
-            input1 = self.varMap[inputName]
-
-        # If both inputs to add are constant, then the output is constant too
-        # No new variables are needed, we just need to store the output in constantMap
-        if firstInputConstant:
             self.constantMap[nodeName] = -input1
             return
         else:
+            input1 = self.varMap[inputName]
             outputVariables = self.makeNewVariables(nodeName)
             input1 = input1.reshape(-1)
             outputVariables = outputVariables.reshape(-1)
@@ -1151,7 +1158,6 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         if firstInputConstant and secondInputConstant:
             self.constantMap[nodeName] = input1 - input2
             return
-
         # If both inputs are variables, then we need a new variable to represent
         # the sum of the two variables
         elif not firstInputConstant and not secondInputConstant:

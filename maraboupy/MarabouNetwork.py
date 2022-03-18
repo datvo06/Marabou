@@ -260,6 +260,56 @@ class MarabouNetwork:
 
         return ipq
 
+    def getMarabouQueryVarOnly(self):
+        """Function to convert network into Marabou InputQuery
+
+        Returns:
+            :class:`~maraboupy.MarabouCore.InputQuery`
+        """
+        ipq = MarabouCore.InputQuery()
+        ipq.setNumberOfVariables(self.numVars)
+
+        for e in self.equList:
+            eq = MarabouCore.Equation(e.EquationType)
+            for (c, v) in e.addendList:
+                assert v < self.numVars
+                eq.addAddend(c, v)
+            eq.setScalar(e.scalar)
+            ipq.addEquation(eq)
+
+        for r in self.reluList:
+            assert r[1] < self.numVars and r[0] < self.numVars
+            MarabouCore.addReluConstraint(ipq, r[0], r[1])
+
+        for r in self.sigmoidList:
+            assert r[1] < self.numVars and r[0] < self.numVars
+            MarabouCore.addSigmoidConstraint(ipq, r[0], r[1])
+
+        for m in self.maxList:
+            assert m[1] < self.numVars
+            for e in m[0]:
+                assert e < self.numVars
+            MarabouCore.addMaxConstraint(ipq, m[0], m[1])
+
+        for b, f in self.absList:
+            MarabouCore.addAbsConstraint(ipq, b, f)
+
+        for b, f in self.signList:
+            MarabouCore.addSignConstraint(ipq, b, f)
+
+        for disjunction in self.disjunctionList:
+            MarabouCore.addDisjunctionConstraint(ipq, disjunction)
+
+        for l in self.lowerBounds:
+            assert l < self.numVars
+            ipq.setLowerBound(l, self.lowerBounds[l])
+
+        for u in self.upperBounds:
+            assert u < self.numVars
+            ipq.setUpperBound(u, self.upperBounds[u])
+
+        return ipq
+
     def solve(self, filename="", verbose=True, options=None):
         """Function to solve query represented by this network
 
