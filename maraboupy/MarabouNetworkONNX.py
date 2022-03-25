@@ -300,6 +300,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         for attr in node.attribute:
             if attr.name == "value":
                 self.constantMap[nodeName] = numpy_helper.to_array(get_attribute_value(attr))
+                self.shapeMap[nodeName] = self.constantMap[nodeName].shape
                 return
         raise RuntimeError("Could not find value of tensor constant")
 
@@ -617,6 +618,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
 
     def shapeOp(self, node):
         self.constantMap[node.output[0]] = self.shapeMap[node.input[0]]
+        self.shapeMap[node.output[0]] = [len(self.constantMap[node.output[0]])]
 
     def maxpoolEquations(self, node, makeEquations):
         """Function to generate maxpooling equations
