@@ -1072,7 +1072,34 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                 e.setScalar(0.0)
                 self.addEquation(e)
             return
+        elif firstInputConstant and not secondInputConstant:
+            outputVariables = self.makeNewVariables(nodeName)
+            # Sub is complex. optimize later
+            input1 = input1.reshape(-1)
+            input2 = input2.reshape(-1)
+            outputVariables = outputVariables.reshape(-1)
+            for i in range(len(outputVariables)):
+                e = MarabouUtils.Equation()
+                e.addAddend(1, input2[i])
+                e.addAddend(-1, outputVariables[i])
+                e.setScalar(-input1[i])
+                self.addEquation(e)
+            return
+        else:
+            outputVariables = self.makeNewVariables(nodeName)
+            # Sub is complex. optimize later
+            input1 = input1.reshape(-1)
+            outputVariables = outputVariables.reshape(-1)
+            for i in range(len(outputVariables)):
+                e = MarabouUtils.Equation()
+                e.addAddend(1, input1[i])
+                e.addAddend(-1, outputVariables[i])
+                e.setScalar(-input2[i])
+                self.addEquation(e)
+            return
 
+        ''' Removing this heuristic for generalizability'''
+        '''
         # Otherwise, we are adding constants to variables.
         # We don't need new equations or new variables if the input variable is the output of a linear equation.
         # Instead, we can just edit the scalar term of the existing linear equation.
@@ -1114,6 +1141,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                 e.addAddend(-1, outputVariables[i])
                 e.setScalar(-constInput[i])
                 self.addEquation(e)
+        '''
 
 
     def subEquations(self, node, makeEquations):
