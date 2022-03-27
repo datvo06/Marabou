@@ -277,7 +277,9 @@ class MarabouNetwork:
             eq.setScalar(e.scalar)
             ipq.addEquation(eq)
 
+        print("Final: ", self.reluList)
         for r in self.reluList:
+            print("relu: ", r, self.numVars)
             assert r[1] < self.numVars and r[0] < self.numVars
             MarabouCore.addReluConstraint(ipq, r[0], r[1])
 

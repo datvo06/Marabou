@@ -227,7 +227,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.sigmoidEquations(node, makeEquations)
         else:
             raise NotImplementedError("Operation {} not implemented".format(node.op_type))
-        print(node.output[0], node.op_type, node.name)
+        print(node.output[0], node.op_type, node.name, self.numVars)
         if node.output[0] in self.constantMap:
             print("Constant: ", self.constantMap[node.output[0]])
         elif node.output[0] in self.varMap:
@@ -1251,6 +1251,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             return
 
         # Get variables
+        print("Before: ", self.reluList, self.numVars)
         inputVars = self.varMap[inputName].reshape(-1)
         outputVars = self.makeNewVariables(nodeName).reshape(-1)
         assert len(inputVars) == len(outputVars)
@@ -1260,6 +1261,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.addRelu(inputVars[i], outputVars[i])
         for f in outputVars:
             self.setLowerBound(f, 0.0)
+        print("After: ", self.reluList, self.numVars)
 
     def sigmoidEquations(self, node, makeEquations):
         """Function to generate equations corresponding to Sigmoid
@@ -1317,12 +1319,22 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
 
         :meta private:
         """
+        # If var is the input vars: do nothing
         if var < numInVars:
             return var
+        # if it in the output var: do nothing either
         if var in outVars:
             ind = np.where(var == outVars)[0][0]
             return newOutVars[ind]
-        return var + len(outVars)
+        # var index is already greater than outVars, do nothing
+        # outvars [25, 30]
+        # var: 26 => still changed
+        # correct way: count the number of outvar that is greater than itself
+        numOutVarGreater = 0
+        for outVar in outVars:
+            if outVar > var:
+                numOutVarGreater += 1
+        return var + numOutVarGreater
 
     def reassignOutputVariables(self):
         """Reassign output variables so output variable numbers follow input variable numbers
@@ -1335,9 +1347,11 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         if self.outputName in self.constantMap:
             raise RuntimeError("Output variable %s is a constant, not the output of equations!"%self.outputName)
         outVars = self.varMap[self.outputName].reshape(-1)
+        print("Outvars: ", outVars)
         numInVars = np.sum([np.prod(self.shapeMap[inputName]) for inputName in self.inputNames])
         numOutVars = len(outVars)
         newOutVars = np.array(range(numInVars,numInVars+numOutVars))
+        # newOutVars = numInVars:(numInVars+numOutVars)
 
         # Adjust equation variables
         for eq in self.equList:
