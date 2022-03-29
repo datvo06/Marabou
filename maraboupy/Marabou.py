@@ -3,7 +3,7 @@ Top contributors (to current version):
     - Christopher Lazarus
     - Kyle Julian
     - Andrew Wu
-    
+
 This file is part of the Marabou project.
 Copyright (c) 2017-2019 by the authors listed in the file AUTHORS
 in the top-level source directory) and their institutional affiliations.
@@ -21,10 +21,10 @@ try:
     from maraboupy.MarabouNetworkNNet import *
 except ImportError:
     warnings.warn("NNet parser is unavailable because the numpy package is not installed")
-try:
-    from maraboupy.MarabouNetworkTF import *
-except ImportError:
-    warnings.warn("Tensorflow parser is unavailable because tensorflow package is not installed")
+# try:
+#    from maraboupy.MarabouNetworkTF import *
+# except ImportError:
+#    warnings.warn("Tensorflow parser is unavailable because tensorflow package is not installed")
 try:
     from maraboupy.MarabouNetworkONNX import *
 except ImportError:
