@@ -26,6 +26,64 @@ import itertools
 
 # The below ScatterElements' numpy implementation is from https://stackoverflow.com/a/46204790/11767360
 def scatter_elements(data, indices, updates, axis=0, reduction='none'):  # type: ignore
+    expanded = False
+    if len(data.shape) == 1 and len(indices.shape) == 1 and\
+            len(updates.shape) == 1:
+        data = np.expand_dims(data, -1)
+        indices = np.expand_dims(indices, -1)
+        updates = np.expand_dims(updates, -1)
+        expanded = True
+    if axis < 0:
+        axis = data.ndim + axis
+
+    idx_xsection_shape = indices.shape[:axis] + indices.shape[axis + 1:]
+
+    def make_slice(arr, axis, i):  # type: ignore
+        slc = [slice(None)] * arr.ndim
+        slc[axis] = i
+        return slc
+
+    def unpack(packed):  # type: ignore
+        unpacked = packed[0]
+        for i in range(1, len(packed)):
+            unpacked = unpacked, packed[i]
+        return unpacked
+
+    def make_indices_for_duplicate(idx):  # type: ignore
+        final_idx = list()
+        for i in range(len(idx[0])):
+            final_idx.append(tuple(idx_element[i] for idx_element in idx))
+        return list(final_idx)
+
+    # We use indices and axis parameters to create idx
+    # idx is in a form that can be used as a NumPy advanced indices for scattering of updates param. in data
+    idx = [[unpack(np.indices(idx_xsection_shape).reshape(indices.ndim - 1, -1)),
+            indices[tuple(make_slice(indices, axis, i))].reshape(1, -1)[0]]
+           for i in range(indices.shape[axis])]
+    idx = list(np.concatenate(idx, axis=1))
+    idx.insert(axis, idx.pop())
+
+    # updates_idx is a NumPy advanced indices for indexing of elements in the updates
+    updates_idx = list(idx)
+    updates_idx.pop(axis)
+    updates_idx.insert(axis, np.repeat(np.arange(indices.shape[axis]), np.prod(idx_xsection_shape)))
+
+    scattered = np.copy(data)
+    if reduction == 'none':
+        scattered[tuple(idx)] = updates[tuple(updates_idx)]
+    else:
+        idx, updates_idx = make_indices_for_duplicate(idx), make_indices_for_duplicate(updates_idx)
+        for iter, idx_set in enumerate(idx):
+            if reduction == 'add':
+                scattered[idx_set] += updates[updates_idx[iter]]
+            elif reduction == 'mul':
+                scattered[idx_set] *= updates[updates_idx[iter]]
+    if expanded:
+        scattered = np.squeeze(scattered, -1)
+    return scattered
+
+
+def scatter_elements_var(data, indices, updates, axis=0, reduction='none'):  # type: ignore
     if axis < 0:
         axis = data.ndim + axis
 
@@ -60,7 +118,9 @@ def scatter_elements(data, indices, updates, axis=0, reduction='none'):  # type:
     updates_idx.pop(axis)
     updates_idx.insert(axis, np.repeat(np.arange(indices.shape[axis]), np.prod(idx_xsection_shape)))
 
-    scattered = np.copy(data)
+    scattered = np.zeros_like(data)
+    if reduction == 'mul':
+        scattered = np.ones_like(data)
     if reduction == 'none':
         scattered[tuple(idx)] = updates[tuple(updates_idx)]
     else:
@@ -71,6 +131,7 @@ def scatter_elements(data, indices, updates, axis=0, reduction='none'):  # type:
             elif reduction == 'mul':
                 scattered[idx_set] *= updates[updates_idx[iter]]
     return scattered
+
 
 
 class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
@@ -254,18 +315,28 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.batchNorm(node, makeEquations)
         elif node.op_type == "MaxPool":
             self.maxpoolEquations(node, makeEquations)
+        elif node.op_type == "Expand":
+            self.expand(node, makeEquations)
         elif node.op_type == "Concat":
             self.concat(node, makeEquations)
         elif node.op_type == "ReduceMax":
             self.reduceMaxEquations(node)
         elif node.op_type == "Conv":
             self.convEquations(node, makeEquations)
+        elif node.op_type == "Less":
+            self.less(node, makeEquations)
+        elif node.op_type == "Where":
+            self.where(node, makeEquations)
+        elif node.op_type == "ScatterElements":
+            self.scatter_elements(node, makeEquations)
         elif node.op_type == 'Gemm':
             self.gemmEquations(node, makeEquations)
         elif node.op_type == 'MatMul':
             self.matMulEquations(node, makeEquations)
         elif node.op_type == 'Mul':
             self.mulEquations(node, makeEquations)
+        elif node.op_type == 'Div':
+            self.divEquations(node, makeEquations)
         elif node.op_type == 'Add':
             self.addEquations(node, makeEquations)
         elif node.op_type == 'Sub':
@@ -317,6 +388,22 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         self.varMap[nodeName] = v
         assert all([np.equal(np.mod(i, 1), 0) for i in v.reshape(-1)]) # check if integers
         return v
+
+    def less(self, node, makeEquations):
+        inputName1, inputName2 = node.input
+        if inputName1 not in self.constantMap and inputName2 not in self.constantMap:
+            raise "Not allowed arbitrary/variable based less yet"
+        self.constantMap[node.output[0]] = self.constantMap[inputName1] < self.constantMap[inputName2]
+        self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
+
+    def where(self, node, makeEquations):
+        condName, xname, yname = node.input
+        if condName not in self.constantMap and xname not in self.constantMap and yname not in self.constantMap:
+            raise "Does not support variable where yet"
+        self.constantMap[node.output[0]] = np.where(self.constantMap[condName],
+                                                    self.constantMap[xname],
+                                                    self.constantMap[yname])
+        self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
 
     def getInputNodes(self, nodeName):
         """Get names of nodes that are inputs to the given node
@@ -415,6 +502,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                 self.constantMap[nodeName] = self.constantMap[inputName].astype('int32')
             elif to == TensorProto.INT64:
                 self.constantMap[nodeName] = self.constantMap[inputName].astype('int64')
+            elif to == TensorProto.BOOL:
+                self.constantMap[nodeName] = self.constantMap[inputName].astype('bool')
             else:
                 err_msg = "Unknown type for casting: %d\n" % to
                 err_msg += "Check here for ONNX TensorProto: https://github.com/onnx/onnx/blob/master/onnx/onnx.proto"
@@ -443,6 +532,84 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                                                   self.constantMap[inputName2],
                                                   axis=axis)
             self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
+
+    def expand(self, node, makeEquations):
+        tensorInputName, shapeInputName = node.input
+        if shapeInputName not in self.constantMap:
+            raise NotImplementedError("Broadcast to unknown size not allowed")
+        self.shapeMap[node.output[0]] = self.constantMap[shapeInputName]
+        if tensorInputName in self.constantMap:
+            self.constantMap[node.output[0]] = np.broadcast_to(
+                self.constantMap[tensorInputName],
+                self.constantMap[shapeInputName]
+            )
+            return
+        self.makeNewVariables(node.output[0])
+        self.varMap[node.output[0]] = np.broadcast_to(
+                self.varMap[tensorInputName],
+                self.constantMap[shapeInputName]
+            )
+
+    def scatter_elements(self, node, makeEquations):
+        print("input: ", node.input)
+        reduction = 'none'
+        axis = None
+        for attr in node.attribute:
+            if attr.name == "axis":
+                axis = get_attribute_value(attr)
+        for attr in node.attribute:
+            if attr.name == "reduction":
+                reduction = get_attribute_value(attr)
+
+        tensorInputName, indicesInputName, updateInputName = node.input
+        if indicesInputName not in self.constantMap:
+            raise NotImplementedError("Scatter with unknown indices not allowed")
+        indices = self.constantMap[indicesInputName]
+        if updateInputName not in self.constantMap:
+            raise NotImplementedError("Scatter with unknown updates not allowed")
+        update = self.constantMap[updateInputName]
+        if tensorInputName in self.constantMap:
+            self.constantMap[node.output[0]] = scatter_elements(
+                self.constantMap[tensorInputName],
+                indices,
+                update, axis=axis, reduction=reduction)
+            self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
+            return
+        # Tricky...
+        scattered = scatter_elements_var(self.varMap[tensorInputName],
+                                         indices, update, axis,
+                                         reduction=reduction)
+        self.shapeMap[node.output[0]] = scattered.shape
+        if reduction == 'none':
+            self.constantMap[node.output[0]] = scattered
+        elif reduction == 'mul':
+            scattered = scattered.reshape(-1)
+            out_vars = self.makeNewVariables(node.output[0]).reshape(-1)
+            inp_vars = self.varMap[tensorInputName].reshape(-1)
+            self.constantMap[node.output[0]] = scattered
+            for i in range(inp_vars):
+                if scattered[i] == 1:
+                    out_vars[i] = inp_vars[i]
+                else:
+                    e = MarabouUtils.Equation()
+                    e.addAddend(-1, out_vars[i])
+                    e.addAddend(scattered[i], inp_vars[i])
+                    e.setScalar(0)
+                    self.addEquation(e)
+        else: # add
+            scattered = scattered.reshape(-1)
+            out_vars = self.makeNewVariables(node.output[0]).reshape(-1)
+            inp_vars = self.varMap[tensorInputName].reshape(-1)
+            self.constantMap[node.output[0]] = scattered
+            for i in range(inp_vars):
+                if scattered[i] == 0:
+                    out_vars[i] = inp_vars[i]
+                else:
+                    e = MarabouUtils.Equation()
+                    e.addAddend(-1, out_vars[i])
+                    e.addAddend(1, inp_vars[i])
+                    e.setScalar(scattered[i])
+                    self.addEquation(e)
 
     def nonzero(self, node):
         # First, get all input
@@ -995,7 +1162,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                 e.setScalar(0.0)
                 self.addEquation(e)
 
-    def mulEquations(self, node, makeEquations):
+    def divEquations(self, node, makeEquations):
         nodeName = node.output[0]
 
         # Get the inputs
@@ -1012,6 +1179,41 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
 
         multiple = self.constantMap[inputName2]
         if inputName1 in self.constantMap:
+            self.constantMap[nodeName] = self.constantMap[inputName1] /self.constantMap[inputName2]
+            return
+        multiple = np.broadcast_to(multiple,
+                                   self.varMap[inputName1].shape).reshape(-1)
+        input1 = self.varMap[inputName1]
+        outputVariables = self.makeNewVariables(nodeName)
+        input1 = input1.reshape(-1)
+        outputVariables = outputVariables.reshape(-1)
+
+        for i in range(len(input1)):
+            e = MarabouUtils.Equation()
+            e.addAddend(1.0/multiple[i], input1[i])
+            e.addAddend(-1, outputVariables[i])
+            e.setScalar(0.0)
+            self.addEquation(e)
+        return
+
+
+    def mulEquations(self, node, makeEquations):
+        nodeName = node.output[0]
+
+        # Get the inputs
+        inputName1, inputName2 = node.input
+        shape1 = self.shapeMap[inputName1]
+        shape2 = self.shapeMap[inputName2]
+
+
+        # Get the broadcasted shape
+        outShape = shape1
+        self.shapeMap[nodeName] = outShape
+        if not makeEquations:
+            return
+
+        multiple = self.constantMap[inputName2].reshape(-1)
+        if inputName1 in self.constantMap:
             self.constantMap[nodeName] = self.constantMap[inputName1] * self.constantMap[inputName2]
             return
         input1 = self.varMap[inputName1]
@@ -1021,7 +1223,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
 
         for i in range(len(input1)):
             e = MarabouUtils.Equation()
-            e.addAddend(multiple, input1[i])
+            e.addAddend(multiple[i], input1[i])
             e.addAddend(-1, outputVariables[i])
             e.setScalar(0.0)
             self.addEquation(e)
@@ -1149,6 +1351,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             outputVariables = self.makeNewVariables(nodeName)
             # Sub is complex. optimize later
             input1 = input1.reshape(-1)
+            input2 = input2.reshape(-1)
             outputVariables = outputVariables.reshape(-1)
             for i in range(len(outputVariables)):
                 e = MarabouUtils.Equation()
