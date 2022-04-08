@@ -325,6 +325,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.convEquations(node, makeEquations)
         elif node.op_type == "Less":
             self.less(node, makeEquations)
+        elif node.op_type == "Equal":
+            self.equal(node, makeEquations)
         elif node.op_type == "Where":
             self.where(node, makeEquations)
         elif node.op_type == "ScatterElements":
@@ -395,6 +397,15 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             raise "Not allowed arbitrary/variable based less yet"
         self.constantMap[node.output[0]] = self.constantMap[inputName1] < self.constantMap[inputName2]
         self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
+
+
+    def equal(self, node, makeEquations):
+        inputName1, inputName2 = node.input
+        if inputName1 not in self.constantMap and inputName2 not in self.constantMap:
+            raise "Not allowed arbitrary/variable based equal yet"
+        self.constantMap[node.output[0]] = (self.constantMap[inputName1] == self.constantMap[inputName2])
+        self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
+
 
     def where(self, node, makeEquations):
         condName, xname, yname = node.input
