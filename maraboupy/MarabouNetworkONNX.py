@@ -1015,17 +1015,21 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             outputVar = self.makeNewVariables(nodeName)
             ranges = list([list(range(e)) for e in outputShape])
             possibleCombs = list(itertools.product(*ranges))
+
             for pos in possibleCombs:
-                pos = pos[0]
+                if len(pos) == 1:
+                    pos = pos[0]
+                else:
+                    pos = list(pos)
                 if isinstance(pos, int):
                     pos = [pos]
                 pos_orig = pos[:]
                 pos.insert(axis, slice(None))
                 maxVars = set(self.varMap[inputName][tuple(pos)].flatten().tolist())
                 if len(maxVars) == 1:
-                    outputVar[pos_orig] = list(maxVars)[0]
+                    outputVar[tuple(pos_orig)] = list(maxVars)[0]
                 else:
-                    self.addMaxConstraint(maxVars, outputVar[pos_orig][0])
+                    self.addMaxConstraint(maxVars, outputVar[tuple(pos_orig)])
 
 
     def convEquations(self, node, makeEquations):
