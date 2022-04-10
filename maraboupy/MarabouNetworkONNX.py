@@ -562,7 +562,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                                                   self.constantMap[inputName2],
                                                   )
             self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
-        print("GatherND shape: ", self.shapeMap[node.output[0]])
+        print("GatherND shape: ", self.shapeMap[inputName1],
+              self.shapeMap[inputName2], self.shapeMap[node.output[0]])
 
 
 
