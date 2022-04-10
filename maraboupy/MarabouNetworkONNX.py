@@ -533,7 +533,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         if startName not in self.constantMap or endName not in self.constantMap or axesName not in self.constantMap or stepName not in self.constantMap:
             raise NotImplementedError("Slice of arbitrary size not allowed")
         index = []
-        for i in range(axesName):
+        for i in range(self.constantMap[axesName]):
             index.append(slice(None))
         index.append(slice(self.constantMap[startName], self.constantMap[endName],
                            self.constantMap[stepName]))
