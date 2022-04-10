@@ -551,7 +551,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         # First, get all input
         inputName1, inputName2 = node.input
         if inputName2 not in self.constantMap:
-            raise NotImplementedError("Gather of arbitrary size not allowed")
+            raise NotImplementedError("GatherND of arbitrary size not allowed")
         if inputName1 in self.constantMap:
             self.constantMap[node.output[0]] = np.take(
                 self.constantMap[inputName1],
@@ -562,6 +562,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                                                   self.constantMap[inputName2],
                                                   )
             self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
+        print("GatherND shape: ", self.shapeMap[node.output[0]])
 
 
 
