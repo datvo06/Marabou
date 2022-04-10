@@ -299,6 +299,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.shapeOp(node)
         elif node.op_type == 'Gather':
             self.gather(node)
+        elif node.op_type == 'Slice':
+            self.slice(node)
         elif node.op_type == 'NonZero':
             self.nonzero(node)
         elif node.op_type == 'Squeeze':
@@ -523,6 +525,26 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         # We shouldn't be casting variables to different types, since Marabou assumes variables have double precision
         elif inputName in self.varMap:
             raise NotImplementedError("Casting variables not allowed with Marabou")
+
+
+    def slice(self, node):
+        # First, get all input
+        dataName, startName, endName, axesName, stepName = node.input
+        if startName not in self.constantMap or endName not in self.constantMap or axesName not in self.constantMap or stepName not in self.constantMap:
+            raise NotImplementedError("Slice of arbitrary size not allowed")
+        index = []
+        for i in range(axesName):
+            index.append(slice(None))
+        index.append(slice(self.constantMap[startName], self.constantMap[endName],
+                           self.constantMap[stepName]))
+        if dataName in self.constantMap:
+            self.constantMap[node.output[0]] = self.constantMap[dataName][index]
+            self.shapeMap[node.output[0]] = self.constantMap[node.output[0]]
+        else:
+            self.varMap[node.output[0]] = self.varMap[dataName][index]
+            self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
+
+
 
     def gather(self, node):
         # First, get all input
