@@ -299,6 +299,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.shapeOp(node)
         elif node.op_type == 'Gather':
             self.gather(node)
+        elif node.op_type == 'GatherND':
+            self.gathernd(node)
         elif node.op_type == 'Slice':
             self.slice(node)
         elif node.op_type == 'NonZero':
@@ -542,6 +544,23 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.shapeMap[node.output[0]] = self.constantMap[node.output[0]]
         else:
             self.varMap[node.output[0]] = self.varMap[dataName][index]
+            self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
+
+
+    def gathernd(self, node):
+        # First, get all input
+        inputName1, inputName2 = node.input
+        if inputName2 not in self.constantMap:
+            raise NotImplementedError("Gather of arbitrary size not allowed")
+        if inputName1 in self.constantMap:
+            self.constantMap[node.output[0]] = np.take(
+                self.constantMap[inputName1],
+                self.constantMap[inputName2])
+            self.shapeMap[node.output[0]] = self.constantMap[node.output[0]]
+        else:
+            self.varMap[node.output[0]] = np.take(self.varMap[inputName1],
+                                                  self.constantMap[inputName2],
+                                                  )
             self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
 
 
