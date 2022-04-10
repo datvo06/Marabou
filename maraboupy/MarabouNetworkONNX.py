@@ -133,7 +133,7 @@ def scatter_elements_var(data, indices, updates, axis=0, reduction='none'):  # t
     return scattered
 
 
-def gather_nd_impl(data: np.ndarray, indices: np.ndarray, batch_dims: int) -> np.ndarray:
+def gather_nd_impl(data: np.ndarray, indices: np.ndarray, batch_dims: int=0) -> np.ndarray:
     # Note the data rank - will be reused multiple times later
     data_rank = len(data.shape)
 
