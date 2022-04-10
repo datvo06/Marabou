@@ -797,9 +797,9 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                     e.setScalar(const_val[i])
                     self.addEquation(e)
                 var_arrays.append(var_val)
+        print(list(v.shape for v in var_arrays))
         for i in range(len(var_arrays)):
             var_arrays[i] = np.broadcast_to(var_arrays[i], var_arrays[0].shape)
-        print(list(v.shape for v in var_arrays))
         self.varMap[node.output[0]] = np.concatenate(
                 tuple(var_arrays),
                 axis=axis)
