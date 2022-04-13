@@ -394,11 +394,11 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.sigmoidEquations(node, makeEquations)
         else:
             raise NotImplementedError("Operation {} not implemented".format(node.op_type))
-        print(node.output[0], node.op_type, node.name, self.numVars)
-        if node.output[0] in self.constantMap:
-            print("Constant: ", self.constantMap[node.output[0]])
-        elif node.output[0] in self.varMap:
-            print("Var:" ,self.varMap[node.output[0]])
+        # print(node.output[0], node.op_type, node.name, self.numVars)
+        # if node.output[0] in self.constantMap:
+        #     print("Constant: ", self.constantMap[node.output[0]])
+        # elif node.output[0] in self.varMap:
+        #     print("Var:" ,self.varMap[node.output[0]])
 
     def getNode(self, nodeName):
         """Find the node in the graph corresponding to the given name
@@ -601,8 +601,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                                                   self.constantMap[inputName2],
                                                   )
             self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
-        print("GatherND shape: ", self.shapeMap[inputName1],
-              self.shapeMap[inputName2], self.shapeMap[node.output[0]])
+        # print("GatherND shape: ", self.shapeMap[inputName1],
+        #       self.shapeMap[inputName2], self.shapeMap[node.output[0]])
 
 
 
@@ -644,7 +644,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             )
 
     def scatter_elements(self, node, makeEquations):
-        print("input: ", node.input)
+        # print("input: ", node.input)
         reduction = 'none'
         axis = None
         for attr in node.attribute:
@@ -1005,7 +1005,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         if len(axis) > 1:
             raise NotImplementedError("ReduceMax yet accept multidim max")
         axis = axis[0]
-        print(axis)
+        # print(axis)
         inputName = node.input[0]
         if inputName in self.constantMap:
             self.constantMap[nodeName] = np.amax(
@@ -1014,11 +1014,11 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         else:
             # Extract attributes and define shape
             inputShape = self.shapeMap[node.input[0]]
-            print(inputShape)
+            # print(inputShape)
             if axis < 0:
                 axis = len(inputShape) + axis
             outputShape = [e for i, e in enumerate(list(inputShape)) if i != axis]
-            print(outputShape)
+            # print(outputShape)
             self.shapeMap[nodeName] = outputShape
             outputVar = self.makeNewVariables(nodeName)
             ranges = list([list(range(e)) for e in outputShape])
@@ -1624,7 +1624,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             return
 
         # Get variables
-        print("Before: ", self.reluList, self.numVars)
+        # print("Before: ", self.reluList, self.numVars)
         inputVars = self.varMap[inputName].reshape(-1)
         outputVars = self.makeNewVariables(nodeName).reshape(-1)
         assert len(inputVars) == len(outputVars)
@@ -1634,7 +1634,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.addRelu(inputVars[i], outputVars[i])
         for f in outputVars:
             self.setLowerBound(f, 0.0)
-        print("After: ", self.reluList, self.numVars)
+        # print("After: ", self.reluList, self.numVars)
 
     def sigmoidEquations(self, node, makeEquations):
         """Function to generate equations corresponding to Sigmoid
@@ -1720,7 +1720,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         if self.outputName in self.constantMap:
             raise RuntimeError("Output variable %s is a constant, not the output of equations!"%self.outputName)
         outVars = self.varMap[self.outputName].reshape(-1)
-        print("Outvars: ", outVars)
+        # print("Outvars: ", outVars)
         numInVars = np.sum([np.prod(self.shapeMap[inputName]) for inputName in self.inputNames])
         numOutVars = len(outVars)
         newOutVars = np.array(range(numInVars,numInVars+numOutVars))
