@@ -196,6 +196,8 @@ private:
     */
     bool disjunctSatisfied( const PiecewiseLinearCaseSplit &disjunct ) const;
 
+		bool _haveEliminatedVariables;
+
     /*
       Go over the list of disjuncts and find just the ones that are
       still feasible, given the current variable bounds

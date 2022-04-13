@@ -184,9 +184,9 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
     Returns:
         :class:`~maraboupy.Marabou.marabouNetworkONNX.marabouNetworkONNX`
     """
-    def __init__(self, filename, inputNames=None, outputName=None):
+    def __init__(self, filename, inputNames=None, outputName=None, reindexOutputVars=True):
         super().__init__()
-        self.readONNX(filename, inputNames, outputName)
+        self.readONNX(filename, inputNames, outputName, reindexOutputVars)
 
     def clear(self):
         """Reset values to represent empty network
@@ -658,28 +658,35 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         if indicesInputName not in self.constantMap:
             raise NotImplementedError("Scatter with unknown indices not allowed")
         indices = self.constantMap[indicesInputName]
-        if updateInputName not in self.constantMap:
-            raise NotImplementedError("Scatter with unknown updates not allowed")
-        update = self.constantMap[updateInputName]
-        if tensorInputName in self.constantMap:
+        if tensorInputName not in self.constantMap:
+            raise NotImplementedError("Scatter with unknown original not allowed")
+        tensorInput = self.constantMap[tensorInputName]
+        if updateInputName in self.constantMap:
+            update = self.constantMap[updateInputName]
             self.constantMap[node.output[0]] = scatter_elements(
-                self.constantMap[tensorInputName],
+                tensorInput,
                 indices,
                 update, axis=axis, reduction=reduction)
             self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
             return
         # Tricky...
-        scattered = scatter_elements_var(self.varMap[tensorInputName],
-                                         indices, update, axis,
+        scattered = scatter_elements_var(tensorInput,
+                                         indices,
+                                         self.varMap[updateInputName],
+                                         axis,
                                          reduction=reduction)
         self.shapeMap[node.output[0]] = scattered.shape
         if reduction == 'none':
-            self.constantMap[node.output[0]] = scattered
+            self.varMap[node.output[0]] = scattered
+            self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
+        else:
+            raise NotImplementedError("NOt yet implemented scatter mul and add in onnx with unknown updates not allowed")
+        '''
         elif reduction == 'mul':
             scattered = scattered.reshape(-1)
             out_vars = self.makeNewVariables(node.output[0]).reshape(-1)
             inp_vars = self.varMap[tensorInputName].reshape(-1)
-            self.constantMap[node.output[0]] = scattered
+            self.varMap[node.output[0]] = scattered
             for i in range(inp_vars):
                 if scattered[i] == 1:
                     out_vars[i] = inp_vars[i]
@@ -703,6 +710,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                     e.addAddend(1, inp_vars[i])
                     e.setScalar(scattered[i])
                     self.addEquation(e)
+        '''
 
     def nonzero(self, node):
         # First, get all input
@@ -804,7 +812,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                 max_shape = len(v.shape)
                 max_len_idx = i
         for i in range(len(var_arrays)):
-            var_arrays[i] = np.broadcast_to(var_arrays[i], var_arrays[max_len_idx].shape)
+            var_arrays[i] = var_arrays[i] if len(var_arrays[i].shape) == max_shape else np.broadcast_to(var_arrays[i], var_arrays[max_len_idx].shape)
         self.varMap[node.output[0]] = np.concatenate(
                 tuple(var_arrays),
                 axis=axis)
