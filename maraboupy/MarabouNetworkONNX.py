@@ -237,6 +237,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
 
         self.inputNames = inputNames
         self.outputNames = outputNames
+        if len(self.outputNames) == 1:
+            self.outputName = outputNames[0]
 
         # Process the shapes and values of the graph while making Marabou equations and constraints
         self.foundnInputFlags = 0
