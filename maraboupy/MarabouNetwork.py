@@ -150,18 +150,16 @@ class MarabouNetwork:
         for dlist in disjuncts:
             # each dlist is set of [eq]
             converted_disjuncts.append([])
-            for eq_list in dlist:
-                converted_disjuncts[-1].append([])
-                for oeq in eq_list:
-                    if isinstance(oeq, MarabouUtils.Equation):
-                        eq = MarabouCore.Equation(oeq.EquationType)
-                        for (c, v) in oeq.addendList:
-                            assert v < self.numVars
-                            eq.addAddend(c, v)
-                        eq.setScalar(oeq.scalar)
-                    else:
-                        eq = oeq
-                    converted_disjuncts[-1][-1].append(eq)
+            for oeq in dlist:
+                if isinstance(oeq, MarabouUtils.Equation):
+                    eq = MarabouCore.Equation(oeq.EquationType)
+                    for (c, v) in oeq.addendList:
+                        assert v < self.numVars
+                        eq.addAddend(c, v)
+                    eq.setScalar(oeq.scalar)
+                else:
+                    eq = oeq
+                converted_disjuncts[-1].append([eq])
 
         self.disjunctionList.append(converted_disjuncts)
 
