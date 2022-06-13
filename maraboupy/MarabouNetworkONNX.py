@@ -582,6 +582,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             index.append(slice(None))
         index.append(slice(self.constantMap[startName][0], self.constantMap[endName][0],
                            self.constantMap[stepName][0]))
+        index = tuple(index)
         if dataName in self.constantMap:
             self.constantMap[node.output[0]] = self.constantMap[dataName][index]
             self.shapeMap[node.output[0]] = self.constantMap[node.output[0]]
