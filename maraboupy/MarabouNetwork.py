@@ -161,7 +161,6 @@ class MarabouNetwork:
                     eq = oeq
                 converted_disjuncts[-1].append(eq)
 
-        print(converted_disjuncts)
         self.disjunctionList.append(converted_disjuncts)
 
     def lowerBoundExists(self, x):
