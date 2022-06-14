@@ -24,7 +24,6 @@ DisjunctionConstraint::DisjunctionConstraint( const List<PiecewiseLinearCaseSpli
     : PiecewiseLinearConstraint( disjuncts.size() )
     , _disjuncts( disjuncts.begin(), disjuncts.end() )
     , _feasibleDisjuncts( disjuncts.size(), 0 )
-		, _haveEliminatedVariables(false)
 {
     for ( unsigned ind = 0; ind < disjuncts.size(); ++ind )
         _feasibleDisjuncts.append( ind );
@@ -36,7 +35,6 @@ DisjunctionConstraint::DisjunctionConstraint( const Vector<PiecewiseLinearCaseSp
     : PiecewiseLinearConstraint( disjuncts.size() )
     , _disjuncts( disjuncts )
     , _feasibleDisjuncts( disjuncts.size(), 0 )
-		, _haveEliminatedVariables(false)
 {
     for ( unsigned ind = 0; ind < disjuncts.size(); ++ind )
         _feasibleDisjuncts.append( ind );
@@ -374,10 +372,8 @@ void DisjunctionConstraint::updateVariableIndex( unsigned oldIndex, unsigned new
 
 void DisjunctionConstraint::eliminateVariable( unsigned /* variable */, double /* fixedValue */ )
 {
-    /*throw MarabouError( MarabouError::FEATURE_NOT_YET_SUPPORTED,
+    throw MarabouError( MarabouError::FEATURE_NOT_YET_SUPPORTED,
                         "Eliminate variable from a DisjunctionConstraint" );
-												*/
-	_haveEliminatedVariables = true;
 }
 
 bool DisjunctionConstraint::constraintObsolete() const
