@@ -368,6 +368,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.concat(node, makeEquations)
         elif node.op_type == "ReduceMax":
             self.reduceMaxEquations(node)
+        elif node.op_type == "ReduceSum":
+            self.reduceSumEquations(node)
         elif node.op_type == "Conv":
             self.convEquations(node, makeEquations)
         elif node.op_type == "Less":
@@ -1044,6 +1046,53 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                 else:
                     self.addMaxConstraint(maxVars, outputVar[tuple(pos_orig)])
 
+    def reduceSumEquations(self, node):
+        """Function to generate reduce max equations
+
+        Args:
+            node (node): ONNX node representing reduce max operation
+            makeEquations (bool): True if we need to create new variables and maxpool constraints
+
+        :meta private:
+        """
+        nodeName = node.output[0]
+        for attr in node.attribute:
+            if attr.name == "axes":
+                axis = tuple(get_attribute_value(attr))
+        if len(axis) > 1:
+            raise NotImplementedError("ReduceSum yet accept multidim sum")
+        axis = axis[0]
+        # print(axis)
+        inputName = node.input[0]
+        if inputName in self.constantMap:
+            self.constantMap[nodeName] = np.amax(
+                self.constantMap[inputName],axis=axis)
+            self.shapeMap[nodeName] = self.constantMap[nodeName].shape
+        else:
+            # Extract attributes and define shape
+            inputShape = self.shapeMap[node.input[0]]
+            # print(inputShape)
+            if axis < 0:
+                axis = len(inputShape) + axis
+            outputShape = [e for i, e in enumerate(list(inputShape)) if i != axis]
+            # print(outputShape)
+            self.shapeMap[nodeName] = outputShape
+            outputVar = self.makeNewVariables(nodeName)
+            ranges = list([list(range(e)) for e in outputShape])
+            possibleCombs = list(itertools.product(*ranges))
+
+            for pos in possibleCombs:
+                if len(pos) == 1:
+                    pos = pos[0]
+                else:
+                    pos = list(pos)
+                if isinstance(pos, int):
+                    pos = [pos]
+                pos_orig = pos[:]
+                pos.insert(axis, slice(None))
+                sumVars = set(self.varMap[inputName][tuple(pos)].flatten().tolist())
+                self.addEquality(sumVars + [outputVar[tuple(pos_orig)]],
+                                 [1] * len(sumVars) + [-1], 0)
 
     def convEquations(self, node, makeEquations):
         """Function to generate equations for a 2D convolution
