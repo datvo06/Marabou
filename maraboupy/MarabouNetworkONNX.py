@@ -1065,7 +1065,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         # print(axis)
         inputName = node.input[0]
         if inputName in self.constantMap:
-            self.constantMap[nodeName] = np.amax(
+            self.constantMap[nodeName] = np.sum(
                 self.constantMap[inputName],axis=axis)
             self.shapeMap[nodeName] = self.constantMap[nodeName].shape
         else:
@@ -1091,7 +1091,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
                 pos_orig = pos[:]
                 pos.insert(axis, slice(None))
                 sumVars = set(self.varMap[inputName][tuple(pos)].flatten().tolist())
-                self.addEquality(sumVars + [outputVar[tuple(pos_orig)]],
+                self.addEquality(list(sumVars) + [outputVar[tuple(pos_orig)]],
                                  [1] * len(sumVars) + [-1], 0)
 
     def convEquations(self, node, makeEquations):
@@ -1376,14 +1376,18 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         if not makeEquations:
             return
 
-        multiple = self.constantMap[inputName2].reshape(-1)
+        multiple = self.constantMap[inputName2]
         if inputName1 in self.constantMap:
             self.constantMap[nodeName] = self.constantMap[inputName1] * self.constantMap[inputName2]
             return
         input1 = self.varMap[inputName1]
         outputVariables = self.makeNewVariables(nodeName)
-        input1 = input1.reshape(-1)
+        assert multiple.shape[-1] == input1.shape[-1]
+        if len(multiple.shape) < len(input1.shape):
+            multiple = np.broadcast_to(multiple, input1.shape)
         outputVariables = outputVariables.reshape(-1)
+        input1 = input1.reshape(-1)
+        multiple = multiple.reshape(-1)
 
         for i in range(len(input1)):
             e = MarabouUtils.Equation()
@@ -1651,6 +1655,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             outputVariables = self.makeNewVariables(nodeName)
             # Sub is complex. optimize later
             input1 = input1.reshape(-1)
+            input2 = input2.reshape(-1)
             outputVariables = outputVariables.reshape(-1)
             for i in range(len(outputVariables)):
                 e = MarabouUtils.Equation()
