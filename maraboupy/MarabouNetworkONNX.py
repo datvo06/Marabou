@@ -745,6 +745,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
 
     def unsqueeze(self, node):
         for attr in node.attribute:
+            print(attr.name)
             if attr.name == "axes":
                 axis = tuple(get_attribute_value(attr))
             if attr.name == "axis":
