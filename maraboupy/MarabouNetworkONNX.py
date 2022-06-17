@@ -1597,6 +1597,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
 
         # Get the broadcasted shape
         outShape = getBroadcastShape(shape1, shape2)
+        print(shape1, shape2, outShape)
         self.shapeMap[nodeName] = outShape
         if not makeEquations:
             return
