@@ -744,9 +744,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
 
     def unsqueeze(self, node):
-        print(node.attribute)
+        axis = -1
         for attr in node.attribute:
-            print(attr.name, flush=True)
             if attr.name == "axes":
                 axis = tuple(get_attribute_value(attr))
 
