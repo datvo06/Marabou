@@ -747,6 +747,9 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         for attr in node.attribute:
             if attr.name == "axes":
                 axis = tuple(get_attribute_value(attr))
+            if attr.name == "axis":
+                axis = get_attribute_value(attr)
+
         inputName1 = node.input[0]
         if inputName1 in self.constantMap:
             self.constantMap[node.output[0]] = np.expand_dims(
