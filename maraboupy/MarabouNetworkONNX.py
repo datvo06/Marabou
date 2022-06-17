@@ -1382,6 +1382,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             return
         input1 = self.varMap[inputName1]
         outputVariables = self.makeNewVariables(nodeName)
+        print(multiple.shape, input1.shape)
         assert multiple.shape[-1] == input1.shape[-1]
         if len(multiple.shape) < len(input1.shape):
             multiple = np.broadcast_to(multiple, input1.shape)
