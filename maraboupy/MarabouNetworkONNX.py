@@ -330,6 +330,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         :meta private:
         """
         node = self.getNode(nodeName)
+        print(node.op_type)
         if node.op_type == 'Constant':
             self.constant(node)
         elif node.op_type == 'Identity':
@@ -639,14 +640,11 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             raise NotImplementedError("Broadcast to unknown size not allowed")
         self.shapeMap[node.output[0]] = self.constantMap[shapeInputName]
         if tensorInputName in self.constantMap:
-            self.constantMap[node.output[0]] = np.broadcast_to(
-                self.constantMap[tensorInputName],
-                self.constantMap[shapeInputName]
-            )
+            self.constantMap[node.output[0]] = self.constantMap[tensorInputName] * np.ones(
+                    self.constantMap[shapeInputName], dtype=self.constantMap[tensorInputName].dtype)
             return
         self.makeNewVariables(node.output[0])
-        self.varMap[node.output[0]] = np.broadcast_to(
-                self.varMap[tensorInputName],
+        self.varMap[node.output[0]] = self.varMap[tensorInputName] * np.ones(
                 self.constantMap[shapeInputName]
             )
 
