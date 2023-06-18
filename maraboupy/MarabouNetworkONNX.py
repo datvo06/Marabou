@@ -399,6 +399,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.reluEquations(node, makeEquations)
         elif node.op_type == 'Sigmoid':
             self.sigmoidEquations(node, makeEquations)
+        elif node.op_type == 'Tile':
+            self.tileEquation(node, makeEquations)
         else:
             raise NotImplementedError("Operation {} not implemented".format(node.op_type))
         # print(node.output[0], node.op_type, node.name, self.numVars)
@@ -635,18 +637,34 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
 
     def expand(self, node, makeEquations):
+        # TODO: backward compatibility, either choose boardcast or this based on the version of input onnx. if 8 - broadcast, if 13, do this
         tensorInputName, shapeInputName = node.input
         if shapeInputName not in self.constantMap:
             raise NotImplementedError("Broadcast to unknown size not allowed")
-        self.shapeMap[node.output[0]] = self.constantMap[shapeInputName]
         if tensorInputName in self.constantMap:
             self.constantMap[node.output[0]] = self.constantMap[tensorInputName] * np.ones(
                     self.constantMap[shapeInputName], dtype=self.constantMap[tensorInputName].dtype)
+            self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
             return
         self.makeNewVariables(node.output[0])
         self.varMap[node.output[0]] = self.varMap[tensorInputName] * np.ones(
                 self.constantMap[shapeInputName]
             )
+        self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
+
+
+    def tileEquation(self, node, makeEquations):
+        tensorInputName, repeatInputName = node.input
+        if repeatInputName not in self.constantMap:
+            raise NotImplementedError("Tile to unknown repeat not allowed")
+        if tensorInputName in self.constantMap:
+            self.constantMap[node.output[0]] = np.tile(self.constantMap[tensorInputName], self.constantMap[repeatInputName])
+            self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
+            return
+        self.makeNewVariables(node.output[0])
+        self.varMap[node.output[0]] = np.tile(self.varMap[tensorInputName], self.constantMap[repeatInputName])
+
+        self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
 
     def scatter_elements(self, node, makeEquations):
         # print("input: ", node.input)
