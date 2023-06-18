@@ -676,7 +676,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             raise NotImplementedError("Pow to unknown degree not allowed")
         if tensorInputName not in self.constantMap:
             raise NotImplementedError("Pow of unknown input is not allowed")
-        self.constantMap[node.output[0]] = np.pow(self.constantMap[tensorInputName], self.constantMap[degInputName])
+        self.constantMap[node.output[0]] = np.power(self.constantMap[tensorInputName], self.constantMap[degInputName])
         self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
         return
 
