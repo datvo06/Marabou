@@ -401,6 +401,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.sigmoidEquations(node, makeEquations)
         elif node.op_type == 'Tile':
             self.tileEquation(node, makeEquations)
+        elif node.op_type == 'Pow':
+            self.powEquation(node, makeEquations)
         else:
             raise NotImplementedError("Operation {} not implemented".format(node.op_type))
         # print(node.output[0], node.op_type, node.name, self.numVars)
@@ -654,6 +656,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
 
 
     def tileEquation(self, node, makeEquations):
+        ''' Tile for ONNX 13'''
         tensorInputName, repeatInputName = node.input
         if repeatInputName not in self.constantMap:
             raise NotImplementedError("Tile to unknown repeat not allowed")
@@ -665,6 +668,18 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         self.varMap[node.output[0]] = np.tile(self.varMap[tensorInputName], self.constantMap[repeatInputName])
 
         self.shapeMap[node.output[0]] = self.varMap[node.output[0]].shape
+
+
+    def powEquation(self, node, makeEquations):
+        tensorInputName, degInputName = node.input
+        if degInputName not in self.constantMap:
+            raise NotImplementedError("Pow to unknown degree not allowed")
+        if tensorInputName not in self.constantMap:
+            raise NotImplementedError("Pow of unknown input is not allowed")
+        self.constantMap[node.output[0]] = np.pow(self.constantMap[tensorInputName], self.constantMap[degInputName])
+        self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
+        return
+
 
     def scatter_elements(self, node, makeEquations):
         # print("input: ", node.input)
