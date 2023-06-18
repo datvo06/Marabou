@@ -805,6 +805,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         inputName1, inputName2 = node.input
 
         # Assume first input is array to be reshaped, second input is the new shape array
+        self.constantMap[inputName2] = self.constantMap[inputName2].astype(int)
+        self.shapeMap[inputName1] = self.shapeMap[inputName1].astype(int)
         reshapeVals = self.constantMap[inputName2]
         self.shapeMap[nodeName] = list(np.zeros(self.shapeMap[inputName1]).reshape(reshapeVals).shape)
         if inputName1 in self.varMap:
@@ -1411,17 +1413,24 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         if not makeEquations:
             return
 
-        multiple = self.constantMap[inputName2]
-        if inputName1 in self.constantMap:
+        if inputName1 in self.constantMap and inputName2 in self.constantMap:
             self.constantMap[nodeName] = self.constantMap[inputName1] * self.constantMap[inputName2]
             return
+        if inputName1 in self.constantMap and inputName2 not in self.constantMap:
+            inputName1, inputName2 = inputName2, inputName1
+        multiple = self.constantMap[inputName2]
         input1 = self.varMap[inputName1]
-        outputVariables = self.makeNewVariables(nodeName)
         if len(multiple.shape) == 0:
             multiple = np.broadcast_to(multiple, input1.shape)
-        assert multiple.shape[-1] == input1.shape[-1]
-        if len(multiple.shape) < len(input1.shape):
+        if len(multiple.shape) != len(input1.shape):
             multiple = np.broadcast_to(multiple, input1.shape)
+        else:
+            tobe_boardcasted = any(s1 != s2 for s1, s2 in zip(multiple.shape, input1.shape))
+            if tobe_boardcasted:
+                multiple = np.broadcast_to(multiple, input1.shape)
+        assert multiple.shape[-1] == input1.shape[-1]
+        self.shapeMap[nodeName] = multiple.shape
+        outputVariables = self.makeNewVariables(nodeName)
         outputVariables = outputVariables.reshape(-1)
         input1 = input1.reshape(-1)
         multiple = multiple.reshape(-1)
