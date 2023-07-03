@@ -402,7 +402,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.tileEquation(node, makeEquations)
         elif node.op_type == 'Pow':
             self.powEquation(node, makeEquations)
-        elif node.op_type == 'Cip':
+        elif node.op_type == 'Clip':
             self.clipEquation(node, makeEquations)
         else:
             raise NotImplementedError("Operation {} not implemented".format(node.op_type))
@@ -686,11 +686,15 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         tensorInputName, minInputName, maxInputName = node.input
         if minInputName not in self.constantMap:
             raise NotImplementedError("Clip to unknown min not allowed")
+        max_val = None
         if maxInputName not in self.constantMap:
-            raise NotImplementedError("Clip to unknown max not allowed")
+            if maxInputName in self.varMap:
+                raise NotImplementedError("Clip to unknown max not allowed")
+        else:
+            max_val = self.constantMap[maxInputName]
         if tensorInputName not in self.constantMap:
             raise NotImplementedError("Clip of unknown input is not allowed")
-        self.constantMap[node.output[0]] = np.clip(self.constantMap[tensorInputName], self.constantMap[minInputName], self.constantMap[maxInputName])
+        self.constantMap[node.output[0]] = np.clip(self.constantMap[tensorInputName], self.constantMap[minInputName], max_val)
         self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
         return
 
@@ -820,7 +824,7 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
 
         # Assume first input is array to be reshaped, second input is the new shape array
         self.constantMap[inputName2] = self.constantMap[inputName2].astype(int)
-        self.shapeMap[inputName1] = self.shapeMap[inputName1].astype(int)
+        self.shapeMap[inputName1] = np.array(self.shapeMap[inputName1]).astype(int)
         reshapeVals = self.constantMap[inputName2]
         self.shapeMap[nodeName] = list(np.zeros(self.shapeMap[inputName1]).reshape(reshapeVals).shape)
         if inputName1 in self.varMap:
