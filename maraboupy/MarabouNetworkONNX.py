@@ -403,6 +403,8 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
             self.tileEquation(node, makeEquations)
         elif node.op_type == 'Pow':
             self.powEquation(node, makeEquations)
+        elif node.op_type == 'Cip':
+            self.clipEquation(node, makeEquations)
         else:
             raise NotImplementedError("Operation {} not implemented".format(node.op_type))
         # print(node.output[0], node.op_type, node.name, self.numVars)
@@ -677,6 +679,19 @@ class MarabouNetworkONNX(MarabouNetwork.MarabouNetwork):
         if tensorInputName not in self.constantMap:
             raise NotImplementedError("Pow of unknown input is not allowed")
         self.constantMap[node.output[0]] = np.power(self.constantMap[tensorInputName], self.constantMap[degInputName])
+        self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
+        return
+
+
+    def clipEquation(self, node, makeEquations):
+        tensorInputName, minInputName, maxInputName = node.input
+        if minInputName not in self.constantMap:
+            raise NotImplementedError("Clip to unknown min not allowed")
+        if maxInputName not in self.constantMap:
+            raise NotImplementedError("Clip to unknown max not allowed")
+        if tensorInputName not in self.constantMap:
+            raise NotImplementedError("Clip of unknown input is not allowed")
+        self.constantMap[node.output[0]] = np.clip(self.constantMap[tensorInputName], self.constantMap[minInputName], self.constantMap[maxInputName])
         self.shapeMap[node.output[0]] = self.constantMap[node.output[0]].shape
         return
 
