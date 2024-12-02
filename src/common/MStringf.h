@@ -21,50 +21,41 @@
 #include <cstdarg>
 #include <cstdio>
 
-class Stringf : public String
-{
+class Stringf : public String {
 public:
-    enum {
-        MAX_STRING_LENGTH = 10000,
-    };
+  enum {
+    MAX_STRING_LENGTH = 10000,
+  };
 
-    Stringf( const char *format, ... )
-    {
-        va_list argList;
-        va_start( argList, format );
+  Stringf(const char *format, ...) {
+    va_list argList;
+    va_start(argList, format);
 
-        char buffer[MAX_STRING_LENGTH];
+    char buffer[MAX_STRING_LENGTH];
 
-        vsprintf( buffer, format, argList );
+    vsnprintf(buffer, MAX_STRING_LENGTH, format, argList);
 
-        va_end( argList );
+    va_end(argList);
 
-        _super = Super( buffer );
-    }
+    _super = Super(buffer);
+  }
 };
 
 #ifdef CXXTEST_RUNNING
 #include <cxxtest/ValueTraits.h>
 #include <stdio.h>
-namespace CxxTest
-{
-    CXXTEST_TEMPLATE_INSTANTIATION
-    class ValueTraits<Stringf>
-    {
-    public:
-        ValueTraits( const Stringf &stringf ) : _stringf( stringf )
-        {
-        }
+namespace CxxTest {
+CXXTEST_TEMPLATE_INSTANTIATION
+class ValueTraits<Stringf> {
+public:
+  ValueTraits(const Stringf &stringf) : _stringf(stringf) {}
 
-        const char *asString() const
-        {
-            return _stringf.ascii();
-        }
+  const char *asString() const { return _stringf.ascii(); }
 
-    private:
-        const Stringf &_stringf;
-    };
-}
+private:
+  const Stringf &_stringf;
+};
+} // namespace CxxTest
 
 #endif // CXXTEST_RUNNING
 
