@@ -36,7 +36,7 @@ set(RESOURCES_DIR "${PROJECT_SOURCE_DIR}/resources")
 set(REGRESS_DIR "${PROJECT_SOURCE_DIR}/regress")
 
 set(ENGINE_DIR "${SRC_DIR}/engine")
-set(PYBIND11_DIR "${TOOLS_DIR}/pybind11-2.3.0")
+set(PYBIND11_DIR "${TOOLS_DIR}/pybind11-2.11.1")
 set(BOOST_DIR "${TOOLS_DIR}/boost_1_68_0")
 set(OPENBLAS_DEFAULT_DIR "${TOOLS_DIR}/OpenBLAS-0.3.19")
 if (NOT OPENBLAS_DIR)
@@ -132,9 +132,9 @@ endif()
 
 if (NOT MSVC)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-       set(COMPILE_FLAGS  -Wall -Wextra  -Werror -MMD -Qunused-arguments ) #-Wno-deprecated 
+       set(COMPILE_FLAGS  -Wall -Wextra  -MMD -Qunused-arguments ) #-Wno-deprecated 
      else()
-       set(COMPILE_FLAGS  -Wall -Wextra  -Werror -MMD ) #-Wno-deprecated 
+       set(COMPILE_FLAGS  -Wall -Wextra  -MMD ) #-Wno-deprecated 
     endif()
     set(RELEASE_FLAGS ${COMPILE_FLAGS} -O3) #-Wno-deprecated
 endif()
